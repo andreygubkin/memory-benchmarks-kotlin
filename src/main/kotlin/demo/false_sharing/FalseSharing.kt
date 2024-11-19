@@ -42,6 +42,10 @@ object FalseSharing : IDemo {
                     someEasyCpuWork()
                     counters.counter2++
                 }
+                repeat(times = iterations) {
+                    someEasyCpuWork()
+                    counters.counter3++
+                }
             }.also {
                 if (verbose) {
                     println("Последовательно\t$it")
@@ -50,10 +54,15 @@ object FalseSharing : IDemo {
 
             counters.reset()
 
-            val twoThreadsPool = Dispatchers.IO.limitedParallelism(2)
+            val threeThreadsPool = Dispatchers.IO.limitedParallelism(3)
 
             suspend fun warmUpPool() {
-                withContext(twoThreadsPool) {
+                withContext(threeThreadsPool) {
+                    launch {
+                        repeat(100) {
+                            yield()
+                        }
+                    }
                     launch {
                         repeat(100) {
                             yield()
@@ -70,7 +79,7 @@ object FalseSharing : IDemo {
             warmUpPool()
 
             measureTimeMillis {
-                withContext(twoThreadsPool) {
+                withContext(threeThreadsPool) {
                     launch {
                         repeat(times = iterations) {
                             someEasyCpuWork()
@@ -83,6 +92,12 @@ object FalseSharing : IDemo {
                             counters.counter2++
                         }
                     }
+                    launch {
+                        repeat(times = iterations) {
+                            someEasyCpuWork()
+                            counters.counter3++
+                        }
+                    }
                 }
             }.also {
                 if (verbose) {
@@ -93,7 +108,7 @@ object FalseSharing : IDemo {
             counters.reset()
 
             measureTimeMillis {
-                withContext(twoThreadsPool) {
+                withContext(threeThreadsPool) {
                     launch {
                         repeat(times = iterations) {
                             someEasyCpuWork()
@@ -103,7 +118,13 @@ object FalseSharing : IDemo {
                     launch {
                         repeat(times = iterations) {
                             someEasyCpuWork()
-                            counters.counter9++
+                            counters.counter10++
+                        }
+                    }
+                    launch {
+                        repeat(times = iterations) {
+                            someEasyCpuWork()
+                            counters.counter19++
                         }
                     }
                 }
@@ -116,7 +137,13 @@ object FalseSharing : IDemo {
             measureTimeMillis {
                 val atomicCounter = AtomicInteger()
 
-                withContext(twoThreadsPool) {
+                withContext(threeThreadsPool) {
+                    launch {
+                        repeat(times = iterations) {
+                            someEasyCpuWork()
+                            atomicCounter.incrementAndGet()
+                        }
+                    }
                     launch {
                         repeat(times = iterations) {
                             someEasyCpuWork()
