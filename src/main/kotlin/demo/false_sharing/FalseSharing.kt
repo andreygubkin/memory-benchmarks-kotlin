@@ -6,12 +6,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 
 object FalseSharing : IDemo {
     override val title = "False sharing"
 
     override suspend fun execute() {
+
+        fun someEasyCpuWork() {
+            var sum = 0L
+            repeat(20) {
+                sum += it
+            }
+            sum.toString()
+        }
+
         suspend fun measureMs(
             iterations: Long,
             counters: ICounters,
@@ -25,9 +35,11 @@ object FalseSharing : IDemo {
 
             measureTimeMillis {
                 repeat(times = iterations) {
+                    someEasyCpuWork()
                     counters.counter1++
                 }
                 repeat(times = iterations) {
+                    someEasyCpuWork()
                     counters.counter2++
                 }
             }.also {
@@ -61,11 +73,13 @@ object FalseSharing : IDemo {
                 withContext(twoThreadsPool) {
                     launch {
                         repeat(times = iterations) {
+                            someEasyCpuWork()
                             counters.counter1++
                         }
                     }
                     launch {
                         repeat(times = iterations) {
+                            someEasyCpuWork()
                             counters.counter2++
                         }
                     }
@@ -82,11 +96,13 @@ object FalseSharing : IDemo {
                 withContext(twoThreadsPool) {
                     launch {
                         repeat(times = iterations) {
+                            someEasyCpuWork()
                             counters.counter1++
                         }
                     }
                     launch {
                         repeat(times = iterations) {
+                            someEasyCpuWork()
                             counters.counter9++
                         }
                     }
@@ -94,6 +110,29 @@ object FalseSharing : IDemo {
             }.also {
                 if (verbose) {
                     println("Параллельно, разные кэш-линии\t$it")
+                }
+            }
+
+            measureTimeMillis {
+                val atomicCounter = AtomicInteger()
+
+                withContext(twoThreadsPool) {
+                    launch {
+                        repeat(times = iterations) {
+                            someEasyCpuWork()
+                            atomicCounter.incrementAndGet()
+                        }
+                    }
+                    launch {
+                        repeat(times = iterations) {
+                            someEasyCpuWork()
+                            atomicCounter.incrementAndGet()
+                        }
+                    }
+                }
+            }.also {
+                if (verbose) {
+                    println("Параллельно, общий атомик\t$it")
                 }
             }
         }
@@ -111,7 +150,7 @@ object FalseSharing : IDemo {
         warmUp()
 
         measureMs(
-            iterations = 10_000_000_000L,
+            iterations = 500_000_000L,
             counters = counters,
             verbose = true,
         )
